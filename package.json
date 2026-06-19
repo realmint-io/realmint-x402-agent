@@ -1,0 +1,20 @@
+{
+  "name": "realmint-x402-agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Autonomous AI-agent reference: self-fund over x402 and buy tokenized RWAs on Realmint — no browser, no human signer.",
+  "scripts": {
+    "agent": "tsx src/agent.ts",
+    "smoke": "tsx src/agent.ts smoke",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
