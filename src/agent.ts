@@ -141,12 +141,31 @@ async function buy(acct: LocalAccount, bearer: string): Promise<void> {
   ]);
   console.log(`✓ source UserOp submitted: ${userOpHash}`);
 
+  // `execute` needs the source tx MINED (else 400 source_tx_not_mined); a UserOp
+  // hash is not a tx hash. Wait for inclusion, then execute with the real tx hash
+  // before the quote expires.
+  const sourceTxHash = await waitForUserOp(bundler_url, userOpHash);
+  console.log(`✓ source tx mined: ${sourceTxHash}`);
+
   await http("POST", `/v1/route/intent/${intentId}/execute`, {
     bearer,
-    body: { agent_wallet: acct.address, source_tx_hash: userOpHash },
+    body: { agent_wallet: acct.address, source_tx_hash: sourceTxHash },
   });
 
   await pollIntent(bearer, intentId);
+}
+
+async function waitForUserOp(bundlerUrl: string, userOpHash: string, timeoutMs = 120_000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const receipt = await bundlerRpc(bundlerUrl, "eth_getUserOperationReceipt", [userOpHash]);
+    if (receipt) {
+      if (receipt.success === false) throw new Error("source UserOp reverted on-chain");
+      return receipt.receipt?.transactionHash ?? userOpHash;
+    }
+    await sleep(2_000);
+  }
+  throw new Error(`timed out waiting for UserOp ${userOpHash} to mine`);
 }
 
 async function pollIntent(bearer: string, intentId: string, timeoutMs = 10 * 60_000): Promise<void> {
