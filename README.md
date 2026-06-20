@@ -13,22 +13,26 @@ Here everything is over the raw HTTP API + x402, so it works in any agent runtim
 ## The loop
 
 ```
-EOA key ─▶ keyless auth ─▶ x402 self-fund ─▶ bridge (Realmint) ─▶ buy ─▶ poll fill
-          (sign challenge)  (sign EIP-3009)   (automatic)         (sign UserOp)
+EOA key ─▶ keyless auth ─▶ register Solana wallet ─▶ x402 self-fund ─▶ bridge ─▶ buy ─▶ poll
+          (sign challenge)   (derive + prove)         (sign EIP-3009)  (auto)   (sign UserOp)
 ```
 
 1. **Keyless auth** — `POST /v1/agent/auth/challenge` → sign the message
    (`personal_sign`) → `POST /v1/agent/auth/token` → a bearer scoped to the EOA.
    No API key.
-2. **Self-fund over x402** — `POST /v1/route/x402-buy` returns a `402` with
+2. **Register the Realmint Wallet (Solana)** — only for Solana-settled assets
+   (xStocks). Derive an ed25519 key from the EVM key (Option A; see
+   [`src/solana-wallet.ts`](src/solana-wallet.ts)), then
+   `GET /v1/agent/solana-wallet/challenge` → sign → `POST /v1/agent/solana-wallet`.
+3. **Self-fund over x402** — `POST /v1/route/x402-buy` returns a `402` with
    payment requirements; the agent signs a USDC EIP-3009 `transferWithAuthorization`
    (see [`src/x402.ts`](src/x402.ts)) and retries with the `X-PAYMENT` header.
    Realmint settles it via the Coinbase facilitator.
-3. **Bridge** — Realmint bridges the USDC to the agent's smart account
-   (CCTP). Fully automatic; the agent just polls its portfolio.
-4. **Buy** — create → prepare → sign the ERC-4337 UserOp → submit → execute →
-   poll to completion. The agent signs the UserOp with its own key; the Solana
-   destination swap is relayer/session-key driven.
+4. **Bridge** — Realmint bridges the USDC to the agent's smart account
+   (CCTP, native USDC). Fully automatic; the agent just polls its portfolio.
+5. **Buy** — create → prepare → sign the ERC-4337 UserOp → **wait for it to
+   mine** → execute → poll to completion. The agent signs the UserOp with its
+   own key; the Solana destination swap is relayer/session-key driven.
 
 ## Run
 
