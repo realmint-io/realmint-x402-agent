@@ -16,6 +16,7 @@
 import { privateKeyToAccount } from "viem/accounts";
 import type { LocalAccount } from "viem";
 import { buildXPayment, type PaymentRequirements } from "./x402.js";
+import { deriveSolanaWallet, registerSolanaWallet } from "./solana-wallet.js";
 
 const BASE_URL = (process.env.REALMINT_BASE_URL ?? "https://api.realmint.io").replace(/\/+$/, "");
 const AMOUNT_USDC = Number(process.env.AMOUNT_USDC ?? 5);
@@ -174,6 +175,11 @@ async function pollIntent(bearer: string, intentId: string, timeoutMs = 10 * 60_
 async function runAgent() {
   const acct = account();
   const bearer = await agentLogin(acct);
+  // Register the agent's Realmint Wallet (Solana recipient) — required to buy
+  // Solana-settled assets like xStocks. Derived from the EVM key; idempotent.
+  const wallet = await deriveSolanaWallet(acct);
+  await registerSolanaWallet(BASE_URL, bearer, wallet);
+  console.log(`✓ Realmint Wallet registered: ${wallet.address}`);
   await fund(acct);
   await buy(acct, bearer);
 }
