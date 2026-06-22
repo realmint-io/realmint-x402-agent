@@ -11,6 +11,7 @@ import type { LocalAccount } from "viem";
 import { keccak256, hexToBytes } from "viem";
 import { ed25519 } from "@noble/curves/ed25519";
 import bs58 from "bs58";
+import { VersionedTransaction, Keypair } from "@solana/web3.js";
 
 export const REALMINT_WALLET_CANONICAL_MESSAGE =
   "Realmint Wallet — key v1\n" +
@@ -55,4 +56,16 @@ export async function registerSolanaWallet(
   });
   const reg = await regRes.json();
   if (!regRes.ok) throw new Error(`register solana wallet failed: ${JSON.stringify(reg)}`);
+}
+
+/**
+ * Co-sign a Solana sell wire with the agent's Realmint Wallet. The server's
+ * `/solana-sell/prepare` returns a base64 V0 transaction already partial-signed
+ * by the relayer; the agent adds its signature over the same message and the
+ * server broadcasts it. The seed never leaves the process.
+ */
+export function signSolanaWire(wireBase64: string, seed: Uint8Array): string {
+  const tx = VersionedTransaction.deserialize(Buffer.from(wireBase64, "base64"));
+  tx.sign([Keypair.fromSeed(seed)]);
+  return Buffer.from(tx.serialize()).toString("base64");
 }
